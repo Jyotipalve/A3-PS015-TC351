@@ -1,3 +1,11 @@
+
+## 🌐 Live Demo
+* **Frontend (Vercel):** [https://netexplain-frontend.vercel.app](https://netexplain-frontend.vercel.app)
+* **Backend API (Render):** [https://netexplain-backend.onrender.com](https://netexplain-backend.onrender.com)
+* **API Documentation:** [https://netexplain-backend.onrender.com/docs](https://netexplain-backend.onrender.com/docs)
+
+
+
 # NetExplain — Measure. Explain. Resolve.
 
 > **AIORI Hackathon 3 · Smart Cities · Problem Statement PS-015**  
