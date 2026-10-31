@@ -178,3 +178,4 @@ def test_session_cancellation():
     updated = storage.get_session(session_id)
     assert updated["status"] == "cancelled"
     assert updated["completed_at"] is not None
+

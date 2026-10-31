@@ -25,9 +25,11 @@ load_dotenv()
 API_VERSION = os.getenv("API_VERSION", "0.2.0")
 cors_origins_env = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:4173,http://127.0.0.1:4173",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:4173,http://127.0.0.1:4173,https://netexplain-frontend.vercel.app",
 )
 origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+if "https://netexplain-frontend.vercel.app" not in origins:
+    origins.append("https://netexplain-frontend.vercel.app")
 
 app = FastAPI(
     title="NetExplain API",
@@ -37,11 +39,16 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Flexible CORS with allow_origin_regex for any local development port
+# Flexible CORS with allow_origin_regex for any local development port and Vercel preview domains
+cors_origin_regex = os.getenv(
+    "CORS_ORIGIN_REGEX",
+    r"^(https?://(localhost|127\.0\.0\.1)(:[0-9]+)?|https://.*\.vercel\.app)$",
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
