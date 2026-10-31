@@ -23,13 +23,25 @@ import storage
 load_dotenv()
 
 API_VERSION = os.getenv("API_VERSION", "0.2.0")
-cors_origins_env = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:4173,http://127.0.0.1:4173,https://netexplain-frontend.vercel.app",
-)
-origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
-if "https://netexplain-frontend.vercel.app" not in origins:
-    origins.append("https://netexplain-frontend.vercel.app")
+# Explicit CORS origins (no wildcard '*' allowed when allow_credentials=True)
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+extra_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip() and o.strip() != "*"]
+
+origins = [
+    "https://netexplain-frontend.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+]
+for extra in extra_origins:
+    if extra not in origins:
+        origins.append(extra)
+
+# Guarantee no wildcard '*' in allow_origins
+origins = [origin for origin in origins if origin != "*"]
 
 app = FastAPI(
     title="NetExplain API",
