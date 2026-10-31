@@ -6,7 +6,17 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Cookie, Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -65,6 +75,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# API Router for all endpoints prefixed with /api
+api_router = APIRouter()
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +308,7 @@ def root_info():
     }
 
 
-@app.get("/api/health", response_model=HealthResponse, tags=["Diagnostics"])
+@api_router.get("/health", response_model=HealthResponse, tags=["Diagnostics"])
 def get_health() -> HealthResponse:
     return HealthResponse(
         status="ok",
@@ -305,7 +318,7 @@ def get_health() -> HealthResponse:
     )
 
 
-@app.get("/api/agent/status", response_model=AgentStatusResponse, tags=["Diagnostics"])
+@api_router.get("/agent/status", response_model=AgentStatusResponse, tags=["Diagnostics"])
 def get_agent_status() -> AgentStatusResponse:
     capabilities = [
         AgentCapability(
@@ -363,7 +376,7 @@ def get_agent_status() -> AgentStatusResponse:
 # Authentication Endpoints
 # ---------------------------------------------------------------------------
 
-@app.post("/api/auth/register", response_model=UserResponse, tags=["Authentication"])
+@api_router.post("/auth/register", response_model=UserResponse, tags=["Authentication"])
 def register(req: RegisterRequest, response: Response):
     try:
         user = storage.create_user(req.username, req.password, req.display_name)
@@ -387,7 +400,7 @@ def register(req: RegisterRequest, response: Response):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
-@app.post("/api/auth/login", response_model=UserResponse, tags=["Authentication"])
+@api_router.post("/auth/login", response_model=UserResponse, tags=["Authentication"])
 def login(req: LoginRequest, response: Response):
     user = storage.authenticate_user(req.username, req.password)
     if not user:
@@ -413,7 +426,7 @@ def login(req: LoginRequest, response: Response):
     }
 
 
-@app.post("/api/auth/logout", tags=["Authentication"])
+@api_router.post("/auth/logout", tags=["Authentication"])
 def logout(request: Request, response: Response):
     token = request.cookies.get(COOKIE_NAME)
     if token:
@@ -422,7 +435,7 @@ def logout(request: Request, response: Response):
     return {"status": "logged_out"}
 
 
-@app.get("/api/auth/me", response_model=UserResponse, tags=["Authentication"])
+@api_router.get("/auth/me", response_model=UserResponse, tags=["Authentication"])
 def get_current_user_profile(user: Dict[str, Any] = Depends(get_current_user)):
     return user
 
@@ -431,7 +444,7 @@ def get_current_user_profile(user: Dict[str, Any] = Depends(get_current_user)):
 # Diagnostic Session Endpoints
 # ---------------------------------------------------------------------------
 
-@app.post("/api/run-full-diagnosis", response_model=DiagnosticSessionResponse, tags=["Diagnostics"])
+@api_router.post("/run-full-diagnosis", response_model=DiagnosticSessionResponse, tags=["Diagnostics"])
 def run_full_diagnosis(
     request: RunDiagnosisRequest,
     background_tasks: BackgroundTasks,
@@ -528,7 +541,7 @@ def run_full_diagnosis(
     return session
 
 
-@app.get("/api/diagnosis/session/{session_id}", response_model=DiagnosticSessionResponse, tags=["Diagnostics"])
+@api_router.get("/diagnosis/session/{session_id}", response_model=DiagnosticSessionResponse, tags=["Diagnostics"])
 def get_diagnosis_session(session_id: str, req: Request):
     session = storage.get_session(session_id)
     if not session:
@@ -548,7 +561,7 @@ def get_diagnosis_session(session_id: str, req: Request):
     return session
 
 
-@app.post("/api/diagnosis/session/{session_id}/cancel", tags=["Diagnostics"])
+@api_router.post("/diagnosis/session/{session_id}/cancel", tags=["Diagnostics"])
 def cancel_diagnosis_session(session_id: str):
     session = storage.get_session(session_id)
     if not session:
@@ -564,7 +577,7 @@ def cancel_diagnosis_session(session_id: str):
     return {"status": "cancelled", "session_id": session_id}
 
 
-@app.get("/api/diagnosis/history", tags=["Diagnostics"])
+@api_router.get("/diagnosis/history", tags=["Diagnostics"])
 def get_diagnosis_history(
     limit: int = 50,
     include_simulated: bool = True,
@@ -576,7 +589,7 @@ def get_diagnosis_history(
     return storage.list_sessions(limit=limit, include_simulated=include_simulated, user_id=user["user_id"])
 
 
-@app.delete("/api/diagnosis/history", tags=["Diagnostics"])
+@api_router.delete("/diagnosis/history", tags=["Diagnostics"])
 def clear_diagnosis_history(user: Dict[str, Any] = Depends(get_current_user)):
     """
     Protected endpoint: clears diagnostic session history for the current user.
@@ -589,7 +602,7 @@ def clear_diagnosis_history(user: Dict[str, Any] = Depends(get_current_user)):
 # Safe Innovation Sandbox (Controlled Fault Simulation)
 # ---------------------------------------------------------------------------
 
-@app.post("/api/simulation/run", response_model=DiagnosticSessionResponse, tags=["Simulation"])
+@api_router.post("/simulation/run", response_model=DiagnosticSessionResponse, tags=["Simulation"])
 def run_simulation(req: SimulationRequest, request: Request):
     """
     Executes a controlled fault simulation scenario through the deterministic rule engine.
@@ -887,6 +900,16 @@ def run_simulation(req: SimulationRequest, request: Request):
 
     storage.save_session(sim_session)
     return sim_session
+
+
+# ---------------------------------------------------------------------------
+# Router Registration
+# ---------------------------------------------------------------------------
+# Mount all API endpoints under the /api prefix
+app.include_router(api_router, prefix="/api")
+
+# Compatibility fallback: also map requests without /api directly
+app.include_router(api_router, include_in_schema=False)
 
 
 if __name__ == "__main__":
